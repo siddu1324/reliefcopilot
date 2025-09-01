@@ -1,0 +1,45 @@
+:root {
+  --bg: #0b1020;
+  --card: #0e1116;
+  --text: #e5e7eb;
+  --muted: #9aa3b2;
+  --accent: #3b82f6;
+  --pill: #1f2937;
+  --chip: #111827;
+  --border: #202635;
+}
+
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; color: var(--text); background: var(--bg); }
+
+header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+h1 { margin: 0; font-size: 24px; }
+.actions button { margin-left: 8px; }
+
+.input textarea { width: 100%; height: 160px; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: #0b0e13; color: var(--text); }
+.btnrow { margin: 8px 0 20px; }
+button { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: #111827; color: var(--text); cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; min-height: 320px; }
+.card h2 { margin: 0 0 12px; }
+
+.scroll { max-height: 420px; overflow: auto; }
+
+.pillrow { display:flex; gap:8px; flex-wrap: wrap; margin-bottom: 10px; }
+.pill { background: var(--pill); padding: 6px 10px; border-radius: 999px; border:1px solid var(--border); }
+
+table.tasks { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.tasks th, table.tasks td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+table.tasks th { color: #cbd5e1; font-weight: 600; background: #0f1522; position: sticky; top: 0; }
+
+.chips { display:flex; gap:8px; flex-wrap: wrap; margin-top: 10px; }
+.chip { background: var(--chip); border:1px solid var(--border); border-radius: 999px; padding:6px 10px; }
+
+.raw summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
+pre { background: #0b0e13; color: #d1d5db; padding: 12px; border-radius: 10px; overflow: auto; }
+
+.muted { color: var(--muted); }
+.prose h1, .prose h2, .prose h3 { margin: 10px 0 6px; }
+.prose ul { margin: 6px 0 10px 20px; }

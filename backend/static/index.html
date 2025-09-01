@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ReliefCopilot (offline)</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header>
+    <h1>ReliefCopilot (offline)</h1>
+    <div class="actions">
+      <button id="btnCopy">Copy Plan</button>
+      <button id="btnDownload">Download JSON</button>
+      <button id="btnPrint">Print Briefing</button>
+    </div>
+  </header>
+
+  <section class="input">
+    <textarea id="logs" placeholder="Paste messy field notes here..."></textarea>
+    <div class="btnrow">
+      <button id="btnPlan">Generate Action Plan</button>
+      <button id="btnBrief" disabled>Make Briefing</button>
+    </div>
+  </section>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Action Plan (summary)</h2>
+      <div id="planSummary" class="scroll"></div>
+
+      <details class="raw">
+        <summary>Show raw JSON</summary>
+        <pre id="planRaw"></pre>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Briefing (ICS-201 style)</h2>
+      <div id="briefingHtml" class="scroll prose"></div>
+
+      <details class="raw">
+        <summary>Show raw text</summary>
+        <pre id="briefingRaw"></pre>
+      </details>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
