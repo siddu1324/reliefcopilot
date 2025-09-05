@@ -65,7 +65,17 @@ function renderPlanSummary(plan) {
   const sms = (plan.comms?.sms_updates || []).map(s => `<div class="chip">SMS: ${escapeHtml(s)}</div>`).join('');
   const pa = plan.comms?.pa_announcement ? `<div class="chip">PA: ${escapeHtml(plan.comms.pa_announcement)}</div>` : '';
 
-  return head + table + `<div class="chips">${sms}${pa}</div>`;
+    const hi = plan.translations?.hi?.summary;
+  const te = plan.translations?.te?.summary;
+  const i18n = `
+    <div class="i18n">
+      ${hi ? `<div class="chip">HI: ${escapeHtml(hi)}</div>` : ''}
+      ${te ? `<div class="chip">TE: ${escapeHtml(te)}</div>` : ''}
+    </div>`;
+  const ev = (plan.evidence || []).map(e => `<li>${escapeHtml(e)}</li>`).join('');
+  const evidenceBlock = ev ? `<h3>Evidence</h3><ul>${ev}</ul>` : '';
+  const warn = (plan._warnings || []).map(w => `<div class="chip" style="background:#712e2e;border-color:#a33">⚠️ ${escapeHtml(w)}</div>`).join('');
+  return warn + head + table + `<div class="chips">${sms}${pa}</div>` + i18n + evidenceBlock;
 }
 
 // --- actions ---

@@ -1,22 +1,39 @@
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 from pathlib import Path
+import json, re
+from rank_bm25 import BM25Okapi
 
 class LocalRAG:
-    def __init__(self, folder: str):
-        self.paths = list(Path(folder).glob("*.txt"))
-        self.docs = [p.read_text(encoding="utf-8")[:8000] for p in self.paths] or \
-                    ["ICS quickstart.", "Sphere WASH basics."]
-        self.vec = TfidfVectorizer(stop_words="english").fit(self.docs)
-        self.mat = self.vec.transform(self.docs)
+    """BM25 retriever over pre-built data/index/chunks.jsonl with citation tags."""
+    def __init__(self, index_path="backend/data/index/chunks.jsonl"):
+        path = Path(index_path)
+        if not path.exists():
+            # Fallback mini-guides if no index yet
+            self.recs = [
+                {"id":"guide-001","domain":"ics","source_title":"ics_201_intro","chunk":"ICS-201 brief: Situation, Objectives, Org, Resources, Safety, Comms."},
+                {"id":"guide-002","domain":"sphere","source_title":"wash_minimums","chunk":"Safe water point; handwashing at critical points; sanitation distance; queue management; chlorine guidance."},
+            ]
+        else:
+            self.recs = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()]
+        docs = [r["chunk"] for r in self.recs]
+        self.tok = [re.findall(r"[a-z0-9]+", d.lower()) for d in docs]
+        self.bm25 = BM25Okapi(self.tok)
 
-    def topk(self, query: str, k: int = 3) -> list[str]:
-        qv = self.vec.transform([query])
-        sims = cosine_similarity(qv, self.mat)[0]
-        order = sims.argsort()[::-1][:k]
-        outs = []
-        for i in order:
-            title = self.paths[i].stem.replace("_", " ") if self.paths else f"doc{i}"
-            snippet = self.docs[i][:700]
-            outs.append(f"[{title}] {snippet}")
-        return outs
+    def _tok(self, s): 
+        return re.findall(r"[a-z0-9]+", s.lower())
+
+    def topk(self, query: str, k=5, prefer=("sphere","ics","who","fema","ifrc")):
+        scores = self.bm25.get_scores(self._tok(query))
+        order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+        cand = [self.recs[i] for i in order[:k*2]]
+        cand.sort(key=lambda r: 0 if r["domain"] in prefer else 1)
+        return cand[:k]
+
+    def blurbs(self, recs):
+        lines=[]
+        for r in recs:
+            tag = f"[{r['domain'].upper()} | {r['source_title']} | {r['id']}]"
+            lines.append(f"{tag} {r['chunk']}")
+        return "\n\n".join(lines)
+
+    def cite_ids(self, recs):
+        return [f"{r['domain']}:{r['source_title']}#{r['id']}" for r in recs]

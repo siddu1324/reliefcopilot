@@ -1,75 +1,61 @@
+# Prompts for ReliefCopilot
+
 ACTION_PLAN_SYSTEM = """You are ReliefCopilot.
-Output ONLY a single JSON object with EXACTLY these top-level keys:
+Output ONLY a single JSON object with EXACTLY these keys:
 incident, assumptions, tasks, comms, translations, evidence.
-No prose, no markdown, no keys other than those six.
-Use ICS terminology and Sphere minimums when helpful.
-If evidence is thin, add assumptions.
+- Base recommendations on the provided "Context evidence".
+- Cite the evidence by including its tags (e.g., SPHERE:wash_safe_water#abcd-000).
+- If evidence is insufficient, add an explicit assumption.
+- No medical dosing or prescriptions; use advice-not-directive wording for health.
 """
 
-ACTION_PLAN_DEVELOPER = """JSON schema:
-{
-  "incident": {"name": "string", "location": "string"},
-  "assumptions": ["string"],
-  "tasks": [
-    {"id":"T-###","title":"string","why":"string","priority":"P0|P1|P2",
-     "owner_role":"Logistics|Operations|Planning|Volunteers",
-     "steps":["string"],"resources":["string"],"timebox_minutes":0,
-     "dependencies":["T-###"],"risks":["string"],"sphere_refs":["WASH 2.1"]}
-  ],
-  "comms":{"sms_updates":["string","string","string"],"pa_announcement":"string"},
-  "translations":{"hi":{"summary":"string"},"te":{"summary":"string"}},
-  "evidence":["<short citations of guidance used>"]
-}
-Do not wrap the object in any other field (no 'plan', no 'result', etc.).
+ACTION_PLAN_DEVELOPER = """JSON schema (keys/shape):
+incident: {name: str, location: str}
+assumptions: [str]
+tasks: [{
+  id: str, title: str, why: str, priority: 'P0'|'P1'|'P2',
+  owner_role: 'Logistics'|'Operations'|'Planning'|'Volunteers',
+  steps: [str], resources: [str], timebox_minutes: int,
+  dependencies: [str], risks: [str], sphere_refs: [str]
+}]
+comms: {sms_updates: [str], pa_announcement: str}
+translations: {hi:{summary:str}, te:{summary:str}}
+evidence: [str]
+Rules:
+- Prefer fewer, high-impact tasks. Include dependencies if any.
+- Each task SHOULD include a related evidence tag in sphere_refs OR mark 'assumption'.
 """
 
-# Few-shot example to “anchor” the structure
-ACTION_PLAN_FEWSHOT_USER = """Free-text field notes:
-50 people in a community hall; water queue forming; one roof leak; 1 wheelchair user; 2 volunteers (Hindi).
-
-Context snippets:
-[ics_201_intro] ICS-201 brief…
-[sphere_wash_minimums] Sphere WASH highlights…
-"""
-
+# Few-shot pair to anchor the JSON shape
+ACTION_PLAN_FEWSHOT_USER = "50 people in a hall; low water; 2 elderly; hot weather; fans only."
 ACTION_PLAN_FEWSHOT_ASSISTANT = """{
-  "incident": {"name": "Community Hall Shelter", "location": "Ward 2"},
-  "assumptions": ["Potable water available nearby"],
-  "tasks": [
-    {
-      "id":"T-001","title":"Set up safe water point",
-      "why":"Queue forming; risk of unsafe collection",
-      "priority":"P0","owner_role":"Logistics",
-      "steps":["Place table near entrance","Post handwashing","Queue markers 1m"],
-      "resources":["Table","Buckets","Soap","Markers"],
-      "timebox_minutes":20,"dependencies":[],
-      "risks":["Crowding"],"sphere_refs":["WASH 2.1"]
-    }
-  ],
-  "comms":{"sms_updates":["Water point opens in 20m near entrance."],"pa_announcement":"Queue calmly; handwash before collecting water."},
-  "translations":{"hi":{"summary":"20 मिनट में प्रवेश द्वार पर पानी का बिंदु खुलेगा…"},
-                  "te":{"summary":"20 నిమిషాల్లో ప్రవేశం వద్ద నీటి పాయింట్ తెరుచుకుంటుంది…"}},
-  "evidence":["Sphere WASH 2.1; ICS-201"]
+  "incident":{"name":"Community Hall","location":"Ward 1"},
+  "assumptions":["Fans available"],
+  "tasks":[
+    {"id":"T-001","title":"Set up safe water point","why":"Low water","priority":"P0","owner_role":"Logistics",
+     "steps":["Table at entrance","Queue lines","Chlorinated water"],
+     "resources":["Table","Buckets","Soap"],"timebox_minutes":20,"dependencies":[],"risks":["Crowding"],"sphere_refs":["sphere:wash_safe_water#demo-000"]}],
+  "comms":{"sms_updates":["Water point open 20 min"],"pa_announcement":"Queue calmly, handwash before water."},
+  "translations":{"hi":{"summary":"20 मिनट में पानी बिंदु खुलेगा।"},"te":{"summary":"నీటి పాయింట్ 20 నిమిషాల్లో తెరుస్తాం."}},
+  "evidence":["sphere:wash_safe_water#demo-000"]
 }"""
 
-def action_plan_user(log_text: str, k_guides: list[str]) -> str:
-    guide_blurbs = "\n\n".join(k_guides)
+def action_plan_user(log_text: str, evidence_blurbs: str, cite_ids: list[str]) -> str:
     return f"""Free-text field notes:
 {log_text}
 
-Context snippets:
-{guide_blurbs}
+Context evidence (tagged):
+{evidence_blurbs}
 
 Constraints:
 - Languages: EN, HI, TE
 - Prioritize water safety, dry shelter, triage flow, vulnerable persons.
-- Use short evidence strings from Context snippets.
+- Use evidence tags {", ".join(cite_ids)} in 'evidence' and in each task's 'sphere_refs' where relevant.
 - Output EXACTLY the six required keys.
 """
 
-
-BRIEFING_SYSTEM = "You produce a concise ICS-201-style briefing. 250-400 words."
-BRIEFING_DEVELOPER = "Sections: Situation, Objectives (max 5), Organization (roles), Resources (key gaps), Safety (top 3), Comms (channels/messages)."
-
-def briefing_user(action_plan_json: str) -> str:
-    return f"Build an ICS-201 style briefing from this ActionPlan JSON:\n{action_plan_json}"
+# Briefing prompts (simple)
+BRIEFING_SYSTEM = "You are ReliefCopilot and write a concise ICS-201 style briefing in markdown."
+BRIEFING_DEVELOPER = "Sections: 1. Incident Overview, 2. Task Summary, 3. Resources, 4. Comms, 5. Translations (HI/TE), 6. Evidence."
+def briefing_user(plan_json: str) -> str:
+    return "Create a readable briefing based on this ActionPlan JSON:\n" + plan_json
