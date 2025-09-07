@@ -1,7 +1,6 @@
-ICS-201 (initial action):
-- Situation summary
-- Objectives (top 3–5)
-- Organization (who’s in Ops, Logistics, Planning, Volunteers)
-- Resources & gaps
-- Safety considerations
-- Communications (SMS/PA)
+ICS-201 Quick Guide:
+- Summarize the situation: who is affected, where, and what’s the biggest risk (e.g., crowding, flooding, damage).
+- Define top objectives—typically immediate life safety, access to basic services (water, shelter, hygiene), and support for vulnerable groups.
+- Clarify roles: who manages operations, logistics, planning, and volunteers; assign a point person for communications.
+- Identify resource gaps (e.g., water, lighting, medical aid) and immediate safety concerns (e.g., flooding, structural risks).
+- Plan communications: verbal announcements (PA), SMS, volunteer coordination, and translations as needed.
