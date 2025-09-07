@@ -1,0 +1,5 @@
+FEMA Shelter Accessibility Checklist (summary):
+- Ensure accessible routes connect shelter entrance to parking, toilets, water points—no steps, with ramps if needed.
+- Pathways must be at least 150 cm wide to accommodate wheelchairs side-by-side.
+- Ensure at least 10 % of latrines and water points are accessible (signage and located within 50 m of shelters).
+- Provide artificial lighting in circulation areas to enhance safety and access.

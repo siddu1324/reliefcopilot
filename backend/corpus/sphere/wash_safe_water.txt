@@ -1,5 +1,6 @@
-Sphere WASH minimums (excerpt, paraphrased):
-- Safe water points with queue management lines (~1 m spacing).
-- Handwashing at critical points: latrines, food areas, water collection.
-- Chlorination guidance: ensure residual chlorine; avoid dosing instructions here.
-- Clear signage; prioritize vulnerable groups in queues.
+Sphere WASH Minimums (excerpt, paraphrased):
+- Provide safe water points with physical distancing markers (~1 m spacing) to reduce crowding and contamination.
+- Install handwashing stations at key locations—especially latrines and food/water collection areas—with soap or ash available.
+- Ensure effective drainage to prevent standing water and muddy conditions around water points—this reduces vector breeding and slip hazards.
+- Do not provide dosing advice; encourage caregivers to request assistance from trained personnel for health decisions.
+- Maintain safe water quality by securing containers and avoiding direct contamination in communal supplies.

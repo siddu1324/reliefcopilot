@@ -1,0 +1,6 @@
+ICS Incident Objectives Guidance:
+- State clear, concise goals: e.g., "Ensure safe water distribution within 30 min of reporting."
+- Prioritize tasks in sequence: water access and sanitation, shelter stabilization, lighting and ventilation, then vulnerable-person triage.
+- Assign responsibilities: Operations handles water and shelter; Logistics handles supplies and volunteer coordination.
+- Use time-bound actions: define duration (e.g., "Set up handwashing station in 20 min").
+- Include safety and communications planning in every objective.
