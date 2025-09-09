@@ -1,159 +1,289 @@
-const logsEl = document.getElementById('logs');
-const planRawEl = document.getElementById('planRaw');
-const planSummaryEl = document.getElementById('planSummary');
-const briefBtn = document.getElementById('btnBrief');
-const briefingHtmlEl = document.getElementById('briefingHtml');
-const briefingRawEl = document.getElementById('briefingRaw');
+// backend/static/app.js
 
-let lastPlan = null;
+const $ = (s) => document.querySelector(s);
+const api = (p, body) =>
+  fetch(p, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).then((r) => r.json());
 
-// --- helpers ---
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// ---------- helpers ----------
+const escapeHtml = (s) =>
+  (s ?? "").toString().replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[m]);
+
+// tiny JSON viewer
+function jsonTree(node) {
+  if (node === null) return '<span class="n">null</span>';
+  if (Array.isArray(node)) return `[${node.map(jsonTree).join(", ")}]`;
+  switch (typeof node) {
+    case "string":
+      return `<span class="s">"${escapeHtml(node)}"</span>`;
+    case "number":
+    case "boolean":
+      return `<span class="n">${node}</span>`;
+    case "object":
+      return (
+        '{<div style="padding-left:14px">' +
+        Object.entries(node)
+          .map(
+            ([k, v]) =>
+              `<div><span class="k">"${escapeHtml(k)}"</span>: ${jsonTree(v)}</div>`
+          )
+          .join("") +
+        "</div>}"
+      );
+    default:
+      return String(node);
+  }
 }
 
-// very tiny markdown → html (bold, headings, lists, code blocks)
-function miniMarkdown(md) {
-  let html = md;
-  // code blocks ``` ```
-  html = html.replace(/```([\s\S]*?)```/g, (_, code) => `<pre>${escapeHtml(code)}</pre>`);
-  // headings ###, ##, #
-  html = html.replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
-             .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
-             .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
-  // bold **text**
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // lists
-  html = html.replace(/^\s*-\s+(.*)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
-  // line breaks
-  html = html.replace(/\n{2,}/g, '</p><p>').replace(/\n/g,'<br>');
-  return `<p>${html}</p>`;
+function evidenceLabel(tag) {
+  const m = String(tag).match(/^([^:]+):([^#]+)#(.+)$/);
+  if (!m) return tag;
+  return `${m[1].toUpperCase()} • ${m[2].replace(/_/g, " ")} (${m[3].slice(
+    0,
+    8
+  )})`;
 }
 
-function renderPlanSummary(plan) {
-  // top box
-  const head =
-    `<div class="pillrow">
-       <span class="pill"><strong>Incident:</strong> ${escapeHtml(plan.incident?.name || '—')}</span>
-       <span class="pill"><strong>Location:</strong> ${escapeHtml(plan.incident?.location || '—')}</span>
-     </div>`;
-
-  // task table
-  const rows = (plan.tasks || []).map(t => {
-    const dep = (t.dependencies||[]).join(', ') || '—';
-    return `<tr>
-      <td>${escapeHtml(t.id||'')}</td>
-      <td>${escapeHtml(t.title||'')}</td>
-      <td>${escapeHtml(t.owner_role||'')}</td>
-      <td>${escapeHtml(t.priority||'')}</td>
-      <td>${t.timebox_minutes ?? 0} min</td>
-      <td>${escapeHtml(dep)}</td>
-    </tr>`;
-  }).join('');
-
-  const table = `
-    <table class="tasks">
-      <thead><tr>
-        <th>ID</th><th>Title</th><th>Owner</th><th>Priority</th><th>Timebox</th><th>Deps</th>
-      </tr></thead>
-      <tbody>${rows || '<tr><td colspan="6">No tasks</td></tr>'}</tbody>
-    </table>`;
-
-  // comms chips
-  const sms = (plan.comms?.sms_updates || []).map(s => `<div class="chip">SMS: ${escapeHtml(s)}</div>`).join('');
-  const pa = plan.comms?.pa_announcement ? `<div class="chip">PA: ${escapeHtml(plan.comms.pa_announcement)}</div>` : '';
-
-    const hi = plan.translations?.hi?.summary;
-  const te = plan.translations?.te?.summary;
-  const i18n = `
-    <div class="i18n">
-      ${hi ? `<div class="chip">HI: ${escapeHtml(hi)}</div>` : ''}
-      ${te ? `<div class="chip">TE: ${escapeHtml(te)}</div>` : ''}
-    </div>`;
-  const ev = (plan.evidence || []).map(e => `<li>${escapeHtml(e)}</li>`).join('');
-  const evidenceBlock = ev ? `<h3>Evidence</h3><ul>${ev}</ul>` : '';
-  const warn = (plan._warnings || []).map(w => `<div class="chip" style="background:#712e2e;border-color:#a33">⚠️ ${escapeHtml(w)}</div>`).join('');
-  return warn + head + table + `<div class="chips">${sms}${pa}</div>` + i18n + evidenceBlock;
+// ---------- Action Plan rendering ----------
+function renderTasks(tasks) {
+  return `<table class="table">
+    <thead><tr><th>ID</th><th>Title</th><th>Owner</th><th>Priority</th><th>Timebox</th><th>Deps</th></tr></thead>
+    <tbody>${(tasks || [])
+      .map(
+        (t) => `
+      <tr>
+        <td>${escapeHtml(t.id || "")}</td>
+        <td>${escapeHtml(t.title || "")}</td>
+        <td>${escapeHtml(t.owner_role || "")}</td>
+        <td class="p-${escapeHtml(t.priority || "P1")}">${escapeHtml(
+          t.priority || ""
+        )}</td>
+        <td>${escapeHtml(String(t.timebox_minutes || 0))} min</td>
+        <td>${escapeHtml((t.dependencies || []).join(", ") || "—")}</td>
+      </tr>`
+      )
+      .join("")}
+    </tbody></table>`;
 }
 
-// --- actions ---
-document.getElementById('btnPlan').onclick = async () => {
-  planSummaryEl.innerHTML = '<div class="muted">Working…</div>';
-  planRawEl.textContent = '';
-  briefingHtmlEl.innerHTML = '';
-  briefingRawEl.textContent = '';
-  briefBtn.disabled = true;
+function renderPlan(plan) {
+  if (plan.error)
+    return `<div class="chip warn">LLM error: ${escapeHtml(plan.error)}</div>`;
 
-  const r = await fetch('/plan', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({logs: logsEl.value})
+  const inc = plan.incident || {};
+  const chips = [];
+  for (const s of plan.comms?.sms_updates || [])
+    chips.push(`<span class="chip">SMS: ${escapeHtml(s)}</span>`);
+  if (plan.comms?.pa_announcement)
+    chips.push(
+      `<span class="chip">PA: ${escapeHtml(plan.comms.pa_announcement)}</span>`
+    );
+  if (plan.translations?.hi?.summary)
+    chips.push(
+      `<span class="chip">HI: ${escapeHtml(plan.translations.hi.summary)}</span>`
+    );
+  if (plan.translations?.te?.summary)
+    chips.push(
+      `<span class="chip">TE: ${escapeHtml(plan.translations.te.summary)}</span>`
+    );
+
+  const ev = (plan.evidence || [])
+    .map((e) => `<li>${escapeHtml(evidenceLabel(e))}</li>`)
+    .join("");
+  const warn = (plan._warnings || [])
+    .map((w) => `<span class="chip warn">⚠ ${escapeHtml(w)}</span>`)
+    .join("");
+
+  // scenario badge (if provided by backend)
+  if (plan._matched_risks && $("#scenarioBadge")) {
+    $("#scenarioBadge").textContent = `Risks: ${plan._matched_risks}`;
+    $("#scenarioBadge").style.display = "inline-block";
+  }
+
+  return `
+    <div class="chips">
+      <span class="badge">Incident: ${escapeHtml(inc.name || "")}</span>
+      <span class="badge">Location: ${escapeHtml(inc.location || "")}</span>
+    </div>
+    ${renderTasks(plan.tasks)}
+    <div class="chips">${chips.join("")}${warn}</div>
+    ${ev ? `<div class="evidence"><h3>Evidence</h3><ul>${ev}</ul></div>` : ""}
+  `;
+}
+
+// ---------- Minimal Markdown → HTML for Briefing ----------
+function mdToHtml(src) {
+  if (!src) return "";
+  // escape HTML
+  let s = String(src).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]));
+  s = s.replace(/\r\n?/g, "\n");
+
+  // table blocks
+  const lines = s.split("\n");
+  let out = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (/\|/.test(lines[i])) {
+      const block = [];
+      while (i < lines.length && /\|/.test(lines[i])) block.push(lines[i++]);
+      const rows = block.filter((ln, idx) => !(idx === 1 && /^\s*\|?\s*:?-{3,}/.test(ln)));
+      const cells = rows.map((r) =>
+        r.replace(/^\s*\|?|\|?\s*$/g, "").split("|").map((c) => c.trim())
+      );
+      if (cells.length) {
+        const thead = cells[0];
+        out.push("<table><thead><tr>" + thead.map((h) => `<th>${h}</th>`).join("") + "</tr></thead>");
+        if (cells.length > 1) {
+          out.push("<tbody>");
+          for (let r = 1; r < cells.length; r++)
+            out.push("<tr>" + cells[r].map((c) => `<td>${c || ""}</td>`).join("") + "</tr>");
+          out.push("</tbody>");
+        }
+        out.push("</table>");
+      }
+      continue;
+    }
+    out.push(lines[i++]);
+  }
+  s = out.join("\n");
+
+  // headings, rules, bold, bullets
+  s = s
+    .replace(/^###\s+(.*)$/gm, "<h3>$1</h3>")
+    .replace(/^##\s+(.*)$/gm, "<h2>$1</h2>")
+    .replace(/^#\s+(.*)$/gm, "<h1>$1</h1>")
+    .replace(/^---\s*$/gm, "<hr/>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(?:^|\n)(-\s+.+(?:\n-\s+.+)*)/g, (m) => {
+      const items = m
+        .trim()
+        .split("\n")
+        .map((l) => l.replace(/-\s+/, ""))
+        .map((t) => `<li>${t}</li>`)
+        .join("");
+      return `\n<ul>${items}</ul>`;
+    });
+
+  // paragraph fallback
+  s = s.replace(/(^|\n)([^<\n][^\n]*)/g, (m, p1, p2) => {
+    if (/^\s*<(h1|h2|h3|ul|li|table|tr|th|td|hr)/i.test(p2)) return m;
+    const txt = p2.trim();
+    return txt ? `${p1}<p>${txt}</p>` : m;
   });
 
-  const j = await r.json();
-  lastPlan = j;
+  return s;
+}
 
-  // summary + raw
-  planSummaryEl.innerHTML = renderPlanSummary(j);
-  planRawEl.textContent = JSON.stringify(j, null, 2);
-  briefBtn.disabled = false;
+// ---------- actions ----------
+let LAST_PLAN = null;
+
+async function generate() {
+  const logs = $("#logs").value;
+  const mode = $("#mode").value;
+  $("#planOut").innerHTML = "…generating…";
+  const plan = await api("/plan", { logs, mode });
+  LAST_PLAN = plan;
+  $("#planOut").innerHTML = renderPlan(plan);
+  $("#jsonTree").innerHTML = jsonTree(plan);
+}
+
+async function makeBrief() {
+  // if user hasn’t generated yet, do it once
+  if (!LAST_PLAN) await generate();
+
+  $("#briefOut").innerHTML = '<div class="chip">…building briefing…</div>';
+
+  try {
+    const b = await api("/briefing", { plan: LAST_PLAN });
+    const text =
+      (b && (b.briefing_text || b.raw_briefing || b.text || b.briefing)) || "";
+
+    if (!text.trim()) {
+      $("#briefOut").innerHTML =
+        '<div class="chip warn">No briefing text returned.</div>' +
+        '<pre class="mono" style="white-space:pre-wrap;">' +
+        escapeHtml(JSON.stringify(b, null, 2)) +
+        "</pre>";
+      return;
+    }
+
+    // Build the tabs & views (no inline script)
+    const container = $("#briefOut");
+    container.innerHTML = `
+      <div class="toolbar">
+        <button class="tab" data-view="rendered">Rendered</button>
+        <button class="tab" data-view="raw">Raw</button>
+        <button class="tab" data-view="json">JSON</button>
+      </div>
+      <div id="brief-rendered" class="markdown"></div>
+      <pre id="brief-raw" class="mono" style="display:none;white-space:pre-wrap;"></pre>
+      <pre id="brief-json" class="mono" style="display:none;"></pre>
+    `;
+
+    $("#brief-rendered").innerHTML = mdToHtml(text.trim());
+    $("#brief-raw").textContent = text.trim();
+    $("#brief-json").textContent = JSON.stringify(
+      { briefing_text: text.trim() },
+      null,
+      2
+    );
+
+    const show = (v) => {
+      $("#brief-rendered").style.display = v === "rendered" ? "block" : "none";
+      $("#brief-raw").style.display = v === "raw" ? "block" : "none";
+      $("#brief-json").style.display = v === "json" ? "block" : "none";
+    };
+    container.querySelectorAll(".tab").forEach((btn) => {
+      btn.onclick = () => show(btn.dataset.view);
+    });
+    show("rendered");
+  } catch (err) {
+    $("#briefOut").innerHTML =
+      '<div class="chip warn">Briefing request failed.</div>' +
+      '<pre class="mono" style="white-space:pre-wrap;">' +
+      escapeHtml(String(err)) +
+      "</pre>";
+  }
+}
+
+// buttons
+$("#gen").onclick = generate;
+$("#brief").onclick = makeBrief;
+
+// toolbar
+$("#copyPlan").onclick = () => {
+  const txt = $("#planOut").innerText;
+  navigator.clipboard.writeText(txt);
 };
-
-briefBtn.onclick = async () => {
-  if (!lastPlan) return;
-  briefingHtmlEl.innerHTML = '<div class="muted">Building briefing…</div>';
-  briefingRawEl.textContent = '';
-
-  const r = await fetch('/briefing', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({plan: lastPlan})
+$("#downloadJson").onclick = () => {
+  const plan = LAST_PLAN || {};
+  const blob = new Blob([JSON.stringify(plan, null, 2)], {
+    type: "application/json",
   });
-  const j = await r.json();
-
-  const raw = j.briefing_text || j.raw_briefing || JSON.stringify(j, null, 2);
-  briefingRawEl.textContent = raw;
-  briefingHtmlEl.innerHTML = miniMarkdown(raw);
-};
-
-// clipboard/download/print
-document.getElementById('btnCopy').onclick = () => {
-  if (!lastPlan) return;
-  navigator.clipboard?.writeText(JSON.stringify(lastPlan, null, 2));
-};
-
-document.getElementById('btnDownload').onclick = () => {
-  if (!lastPlan) return;
-  const blob = new Blob([JSON.stringify(lastPlan, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `action_plan_${Date.now()}.json`;
+  a.download = "action_plan.json";
   a.click();
-  URL.revokeObjectURL(a.href);
 };
+$("#printBriefing").onclick = () => window.print();
 
-document.getElementById('btnPrint').onclick = () => {
-  // print only the briefing card
-  const win = window.open('', '_blank');
-  const html = `
-    <html><head>
-      <meta charset="utf-8">
-      <title>Briefing</title>
-      <style>
-        body { font-family: system-ui, sans-serif; margin: 24px; }
-        h1,h2,h3 { margin: 0 0 8px; }
-        .prose p { line-height: 1.4; }
-        pre { background: #0e1116; color:#d1d5db; padding:12px; border-radius:8px; }
-      </style>
-    </head><body>
-      <h2>ICS-201 Briefing</h2>
-      <div class="prose">${briefingHtmlEl.innerHTML || '<em>No briefing yet</em>'}</div>
-    </body></html>`;
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
-  // win.close(); // optionally close after printing
-};
+// theme toggle + remember
+const storedTheme =
+  localStorage.getItem("theme") ||
+  (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+document.body.setAttribute("data-theme", storedTheme);
+$("#themeToggle")?.addEventListener("click", () => {
+  const next =
+    document.body.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  document.body.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+});

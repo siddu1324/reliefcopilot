@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+    ports: ["11434:11434"]
+
+  app:
+    build: .
+    container_name: reliefcopilot
+    restart: unless-stopped
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - MODEL_NAME=gpt-oss:20b
+    volumes:
+      - ./:/app
+    ports: ["8000:8000"]
+    depends_on:
+      - ollama
+
+volumes:
+  ollama_models: {}
