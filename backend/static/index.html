@@ -1,47 +1,52 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>ReliefCopilot (offline)</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <header>
-    <h1>ReliefCopilot (offline)</h1>
-    <div class="actions">
-      <button id="btnCopy">Copy Plan</button>
-      <button id="btnDownload">Download JSON</button>
-      <button id="btnPrint">Print Briefing</button>
+  <header class="bar">
+    <h1>ReliefCopilot</h1>
+    <div class="controls">
+      <button id="themeToggle" title="Toggle theme">☀️/🌙</button>
+      <label>Mode
+        <select id="mode">
+          <option value="deterministic">Deterministic</option>
+          <option value="adaptive">Adaptive</option>
+        </select>
+      </label>
+      <button id="copyPlan">Copy</button>
+      <button id="downloadJson">Download</button>
+      <button id="printBriefing">Print</button>
     </div>
   </header>
 
-  <section class="input">
-    <textarea id="logs" placeholder="Paste messy field notes here..."></textarea>
-    <div class="btnrow">
-      <button id="btnPlan">Generate Action Plan</button>
-      <button id="btnBrief" disabled>Make Briefing</button>
+  <main class="wrap">
+    <textarea id="logs" placeholder="Paste messy field notes here…" aria-label="field notes"></textarea>
+    <div class="actions">
+      <button id="gen">Generate Action Plan</button>
+      <button id="brief">Make Briefing</button>
     </div>
-  </section>
 
-  <main class="grid">
-    <section class="card">
-      <h2>Action Plan (summary)</h2>
-      <div id="planSummary" class="scroll"></div>
+    <section class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Action Plan</h2>
+          <span id="scenarioBadge" class="badge"></span>
+        </div>
+        <div id="planOut"></div>
+        <details class="acc">
+          <summary>Show JSON</summary>
+          <div id="jsonTree" class="json"></div>
+        </details>
+      </div>
 
-      <details class="raw">
-        <summary>Show raw JSON</summary>
-        <pre id="planRaw"></pre>
-      </details>
-    </section>
-
-    <section class="card">
-      <h2>Briefing (ICS-201 style)</h2>
-      <div id="briefingHtml" class="scroll prose"></div>
-
-      <details class="raw">
-        <summary>Show raw text</summary>
-        <pre id="briefingRaw"></pre>
-      </details>
+      <div class="panel">
+        <h2>Briefing (ICS-201 style)</h2>
+        <div id="briefOut" class="brief"></div>
+      </div>
     </section>
   </main>
 

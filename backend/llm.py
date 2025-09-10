@@ -1,29 +1,25 @@
-import os, httpx
+import requests, os, json
 
-# Prefer OpenAI-compatible endpoint if provided; otherwise use Ollama
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")  # e.g. http://localhost:8000/v1 for vLLM
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "EMPTY")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-oss-20b")
-OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
+MODEL = os.environ.get("MODEL_NAME", "gpt-oss:20b")
 
-def _chat_ollama(messages, temperature=0.2):
-    payload = {"model": "gpt-oss:20b", "messages": messages, "stream": False,
-               "options": {"temperature": temperature}}
-    r = httpx.post(OLLAMA_URL, json=payload, timeout=120)
+DET_OPTS = {"seed": 42, "temperature": 0.2, "top_p": 0.9, "repeat_penalty": 1.1}
+ADAPT_OPTS = {"temperature": 0.6, "top_p": 0.95, "repeat_penalty": 1.05}
+
+def _post(path: str, payload: dict, timeout=120):
+    url = f"{OLLAMA_URL}{path}"
+    r = requests.post(url, json=payload, timeout=timeout)
     r.raise_for_status()
-    return r.json()["message"]["content"]
+    return r.json()
 
-def _chat_openai(messages, temperature=0.2):
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
-    r = httpx.post(
-        f"{OPENAI_BASE_URL}/chat/completions",
-        json={"model": MODEL_NAME, "messages": messages, "temperature": temperature},
-        headers=headers, timeout=120
-    )
-    r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"]
-
-def chat(messages, temperature=0.2):
-    if OPENAI_BASE_URL:
-        return _chat_openai(messages, temperature)
-    return _chat_ollama(messages, temperature)
+def chat(messages, mode="deterministic"):
+    opts = DET_OPTS if mode == "deterministic" else ADAPT_OPTS
+    req = {"model": MODEL, "messages": messages, "options": opts, "stream": False}
+    try:
+        resp = _post("/api/chat", req)
+    except Exception as e:
+        # Return a clear JSON error slice so UI shows something useful
+        return '{"error": "LLM call failed: %s"}' % str(e)
+    # Ollama returns {"message":{"content":...}}
+    content = (resp.get("message") or {}).get("content") or ""
+    return content
