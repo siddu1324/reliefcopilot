@@ -143,4 +143,4 @@ docker run --rm -v ollama_models:/to -v $PWD:/from alpine sh -c "cd /to && tar -
 ---
 
 ## 📜 License
-[MIT](LICENSE)
+[APACHE 2.0](LICENSE)
