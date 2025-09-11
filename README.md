@@ -70,6 +70,38 @@ docker exec -it ollama ollama pull gpt-oss:20b
 http://127.0.0.1:8000/static/index.html
 ```
 
+# Option B: Local Python (no Docker)
+
+> ⚠️ Requires **Python 3.11+** and [Ollama](https://ollama.com) installed locally.
+
+---
+
+### 1. Clone repo
+```bash
+git clone https://github.com/<you>/reliefcopilot.git
+cd reliefcopilot
+
+### 2. Create a virtual environment & install dependencies
+
+python -m venv .venv
+source .venv/bin/activate   # macOS/Linux
+# .venv\Scripts\activate    # Windows PowerShell
+pip install -r backend/requirements.txt
+
+### 3. Start Ollama and pull the model
+ollama serve &
+ollama pull gpt-oss:20b   # or llama3.1:8b-instruct-q4_0 if hardware is limited
+
+### 4. Run ReliefCopilot backend
+
+export OLLAMA_URL="http://127.0.0.1:11434"
+export MODEL_NAME="gpt-oss:20b"
+uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
+
+### 5. Open the UI
+
+http://127.0.0.1:8000/static/index.html
+
 Paste field notes → **Generate Action Plan** → **Make Briefing**.
 
 ---
